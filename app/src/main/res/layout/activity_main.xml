@@ -5,36 +5,29 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity" >
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" >
+    <EditText
+        android:id="@+id/et_path"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="http://www.baidu.com" />
+
+    <Button
+        android:id="@+id/click"
+        android:layout_below="@id/et_path"
+        android:onClick="click"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="查看源码" />
+
+    <ScrollView
+        android:layout_below="@id/click"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" >
 
         <TextView
-            android:id="@+id/textview_show"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="hello，world！" />
-
-        <ImageView
-            android:id="@+id/imagview_show"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center" />
-    </FrameLayout>
-
-    <Button
-        android:id="@+id/btn_visit_web"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:text="访问百度" />
-    <Button
-        android:id="@+id/btn_download_img"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_toRightOf="@id/btn_visit_web"
-        android:text="下载图片"/>
+            android:id="@+id/tv_result"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent" />
+    </ScrollView>
 
 </RelativeLayout>

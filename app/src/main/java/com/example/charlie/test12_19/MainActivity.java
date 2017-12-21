@@ -1,213 +1,77 @@
 package com.example.charlie.test12_19;
 
-import java.io.BufferedReader;
-import java.io.IOException;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 
-import android.app.Activity;
-import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.view.Menu;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
-import android.widget.RelativeLayout;
-import android.widget.TextView;
-
 public class MainActivity extends Activity {
-    Button visitWebBtn = null;
-    Button downImgBtn = null;
-    TextView showTextView = null;
-    ImageView showImageView = null;
-    String resultStr = "";
-    ProgressBar progressBar = null;
-    ViewGroup viewGroup = null;
+    protected static final int SUCCESS = 1;
+    protected static final int ERROR = 2;
+
+    private EditText et_path;
+    private TextView tv_result;
+
+    @SuppressLint("HandlerLeak")
+    private Handler handler = new Handler(){
+        public void handleMessage(android.os.Message msg) {
+            switch (msg.what) {
+                case SUCCESS:
+                    String text = (String) msg.obj;
+                    tv_result.setText(text);
+                    break;
+                case ERROR:
+                    Toast.makeText(MainActivity.this, "请求失败", Toast.LENGTH_SHORT).show();
+                    break;
+            }
+        }
+    };
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        initUI();
-        visitWebBtn.setOnClickListener(new View.OnClickListener() {
+        et_path = (EditText) findViewById(R.id.et_path);
+        tv_result = (TextView) findViewById(R.id.tv_result);
+    }
 
-            @Override
-            public void onClick(View v) {
-                // TODO Auto-generated method stub  
-                showImageView.setVisibility(View.GONE);
-                showTextView.setVisibility(View.VISIBLE);
-                Thread visitBaiduThread = new Thread(new VisitWebRunnable());
-                visitBaiduThread.start();
+    public void click(View view){
+        final String path = et_path.getText().toString().trim();
+        //访问网络，把html源文件下载下来
+        new Thread(){
+            public void run() {
                 try {
-                    visitBaiduThread.join();
-                    if(!resultStr.equals("")){
-                        showTextView.setText(resultStr);
+                    URL url = new URL(path);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");//声明请求方式 默认get
+                    //conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; U; Android 2.3.3; zh-cn; sdk Build/GRI34) AppleWebKit/533.1 (KHTML, like Gecko) Version/4.0 Mobile Safari/533.1 MicroMessenger/6.0.0.57_r870003.501 NetType/internet");
+                    int code = conn.getResponseCode();
+                    if(code ==200){
+                        InputStream is = conn.getInputStream();
+                        String result = StreamTools.readStream(is);
+
+                        Message msg = Message.obtain();
+                        msg.obj = result;
+                        msg.what = SUCCESS;
+                        handler.sendMessage(msg);
                     }
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block  
+                } catch (Exception e) {
+                    Message msg = Message.obtain();
+                    msg.what = ERROR;
+                    handler.sendMessage(msg);
                     e.printStackTrace();
                 }
             }
-        });
-        downImgBtn.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-            public void onClick(View v) {
-                // TODO Auto-generated method stub  
-                showImageView.setVisibility(View.VISIBLE);
-                showTextView.setVisibility(View.GONE);
-                String imgUrl = "https://assets.vg247.com/current/2015/10/final_fantasy_15.jpg";
-                new DownImgAsyncTask().execute(imgUrl);
-            }
-        });
+        }.start();
     }
+}
 
-    public void initUI(){
-        showTextView = (TextView)findViewById(R.id.textview_show);
-        showImageView = (ImageView)findViewById(R.id.imagview_show);
-        downImgBtn = (Button)findViewById(R.id.btn_download_img);
-        visitWebBtn = (Button)findViewById(R.id.btn_visit_web);
-    }
-    /**
-     * 获取指定URL的响应字符串 
-     * @param urlString
-     * @return
-     */
-    private String getURLResponse(String urlString){
-        HttpURLConnection conn = null; //连接对象  
-        InputStream is = null;
-        String resultData = "";
-        try {
-            URL url = new URL(urlString); //URL对象  
-            conn = (HttpURLConnection)url.openConnection(); //使用URL打开一个链接  
-            conn.setDoInput(true); //允许输入流，即允许下载  
-            conn.setDoOutput(true); //允许输出流，即允许上传  
-            conn.setUseCaches(false); //不使用缓冲  
-            conn.setRequestMethod("GET"); //使用get请求  
-            is = conn.getInputStream();   //获取输入流，此时才真正建立链接  
-            InputStreamReader isr = new InputStreamReader(is);
-            BufferedReader bufferReader = new BufferedReader(isr);
-            String inputLine  = "";
-            while((inputLine = bufferReader.readLine()) != null){
-                resultData += inputLine + "\n";
-            }
-
-        } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block  
-            e.printStackTrace();
-        }catch (IOException e) {
-            // TODO Auto-generated catch block  
-            e.printStackTrace();
-        }finally{
-            if(is != null){
-                try {
-                    is.close();
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block  
-                    e.printStackTrace();
-                }
-            }
-            if(conn != null){
-                conn.disconnect();
-            }
-        }
-
-        return resultData;
-    }
-
-    /**
-     * 从指定URL获取图片 
-     * @param url
-     * @return
-     */
-    private Bitmap getImageBitmap(String url){
-        URL imgUrl = null;
-        Bitmap bitmap = null;
-        try {
-            imgUrl = new URL(url);
-            HttpURLConnection conn = (HttpURLConnection)imgUrl.openConnection();
-            conn.setDoInput(true);
-            conn.connect();
-            InputStream is = conn.getInputStream();
-            bitmap = BitmapFactory.decodeStream(is);
-            is.close();
-        } catch (MalformedURLException e) {
-            // TODO Auto-generated catch block  
-            e.printStackTrace();
-        }catch(IOException e){
-            e.printStackTrace();
-        }
-        return bitmap;
-    }
-    class VisitWebRunnable implements Runnable{
-
-        @Override
-        public void run() {
-            // TODO Auto-generated method stub  
-            String data = getURLResponse("http://www.baidu.com/");
-            resultStr = data;
-        }
-
-    }
-    class DownImgAsyncTask extends AsyncTask<String, Void, Bitmap>{
-
-
-        @Override
-        protected void onPreExecute() {
-            // TODO Auto-generated method stub  
-            super.onPreExecute();
-            showImageView.setImageBitmap(null);
-            showProgressBar();//显示进度条提示框  
-
-        }
-
-        @Override
-        protected Bitmap doInBackground(String... params) {
-            // TODO Auto-generated method stub  
-            Bitmap b = getImageBitmap(params[0]);
-            return b;
-        }
-
-        @Override
-        protected void onPostExecute(Bitmap result) {
-            // TODO Auto-generated method stub  
-            super.onPostExecute(result);
-            if(result!=null){
-                dismissProgressBar();
-                showImageView.setImageBitmap(result);
-            }
-        }
-    }
-    /**
-     * 在母布局中间显示进度条 
-     */
-    private void showProgressBar(){
-        progressBar = new ProgressBar(this, null, android.R.attr.progressBarStyleLarge);
-        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.addRule(RelativeLayout.CENTER_IN_PARENT,  RelativeLayout.TRUE);
-        progressBar.setVisibility(View.VISIBLE);
-        Context context = getApplicationContext();
-        viewGroup = (ViewGroup)findViewById(R.id.parent_view);
-        //      MainActivity.this.addContentView(progressBar, params);  
-        viewGroup.addView(progressBar, params);
-    }
-    /**
-     * 隐藏进度条 
-     */
-    private void dismissProgressBar(){
-        if(progressBar != null){
-            progressBar.setVisibility(View.GONE);
-            viewGroup.removeView(progressBar);
-            progressBar = null;
-        }
-    }
-
-}  
